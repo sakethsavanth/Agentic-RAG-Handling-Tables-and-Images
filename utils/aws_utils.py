@@ -149,28 +149,52 @@ class AWSBedrockClient:
                 'error': error_msg
             }
     
-    def analyze_table(self, table_text: str) -> Dict[str, Any]:
+    def analyze_table(self, table_text: str, context_before: str = "", context_after: str = "") -> Dict[str, Any]:
         """
         Analyze a table and get SQL CREATE TABLE and INSERT statements from Nova
-        """
-        prompt = f"""You are a SQL expert. Analyze the following table data and generate SQL statements to create and populate the table.
         
+        Args:
+            table_text: The markdown table content
+            context_before: Text appearing before the table (for context)
+            context_after: Text appearing after the table (for context)
+        """
+        # Build context-aware prompt
+        context_section = ""
+        if context_before or context_after:
+            context_section = "\n\nDocument Context (for naming and understanding):"
+            if context_before:
+                context_section += f"\n--- Text before table ---\n{context_before[:300]}"
+            if context_after:
+                context_section += f"\n--- Text after table ---\n{context_after[:300]}"
+        
+        prompt = f"""You are a PostgreSQL expert. Analyze the following table and generate SQL to create and populate it.
+{context_section}
+
 Table Data:
 {table_text}
 
-Instructions:
-1. Infer appropriate column names and data types from the table
-2. Create a valid PostgreSQL CREATE TABLE IF NOT EXISTS statement
-3. Use appropriate data types (TEXT, INTEGER, FLOAT, DATE, etc.)
-4. Generate a meaningful table name based on the content
-5. IMPORTANT: Use CREATE TABLE IF NOT EXISTS to avoid errors if table exists
-6. Generate INSERT statements to populate the table with ALL the data shown in the table
-7. Return the SQL CREATE TABLE statement followed by INSERT statements, nothing else
+⚠️ CRITICAL INSTRUCTIONS:
+1. **Table Name**: Use context above to create a descriptive table name (lowercase, underscore_separated)
+2. **Column Names**: Infer from table headers, use lowercase with underscores
+3. **Data Types**: Use appropriate PostgreSQL types (TEXT, INTEGER, NUMERIC, DATE, BOOLEAN)
+   - Use NUMERIC for all decimal numbers (not FLOAT)
+   - Use TEXT for any non-numeric data
+   - Use INTEGER only for whole numbers
+4. **Missing Data**: Replace any missing/empty cells with 'NA' (as TEXT)
+5. **Special Characters**: 
+   - Remove or replace special dashes (–, —) with standard hyphen (-)
+   - Escape single quotes in text values (')
+   - Remove any non-standard Unicode characters
+6. **DO NOT USE**: LOAD_FILE(), BLOB types, or any file system functions
+7. **Format**: CREATE TABLE IF NOT EXISTS ... followed by INSERT INTO statements
+8. **Quotes**: Properly quote all TEXT values in INSERT statements
+
+Generate ONLY the SQL statements (no explanations):
 
 SQL Statement:"""
         
-        print("📋 Analyzing table structure with Nova...")
-        result = self.get_nova_response(prompt)
+        print("📋 Analyzing table structure with Nova (with context)...")
+        result = self.get_nova_response(prompt, model_id="us.amazon.nova-pro-v1:0")
         
         if result['success']:
             sql_query = result['response'].strip()
@@ -188,27 +212,45 @@ SQL Statement:"""
         else:
             return result
     
-    def analyze_image(self, image_base64: str, image_type: str = "general") -> Dict[str, Any]:
+    def analyze_image(self, image_base64: str, image_type: str = "general", page_context: str = "") -> Dict[str, Any]:
         """
         Analyze an image with Nova
         - For general images: get a summary
         - For data visualization: get SQL to recreate the underlying table
+        
+        Args:
+            image_base64: Base64 encoded image
+            image_type: "general" or "visualization"
+            page_context: Text context from the page containing the image
         """
         if image_type == "visualization":
-            prompt = """You are analyzing a data visualization (chart, graph, or plot). 
+            context_section = ""
+            if page_context:
+                context_section = f"\n\nPage Context (for table naming):\n{page_context[:400]}\n"
             
-Your task:
-1. Identify the type of visualization (bar chart, line chart, pie chart, scatter plot, etc.)
-2. Extract all data points visible in the visualization
-3. Generate a PostgreSQL CREATE TABLE IF NOT EXISTS statement that would store the data used to create this visualization
-4. The table should include all columns needed to recreate this exact visualization
-5. IMPORTANT: Use CREATE TABLE IF NOT EXISTS to avoid errors if table already exists
+            prompt = f"""You are analyzing a data visualization (chart, graph, plot).{context_section}
 
-Return ONLY the SQL CREATE TABLE IF NOT EXISTS statement with INSERT statements for the data points you can extract, nothing else.
+⚠️ CRITICAL INSTRUCTIONS:
+1. **Identify**: Type of chart (bar, line, pie, scatter, etc.)
+2. **Extract**: All visible data points and labels
+3. **Table Name**: Use context above to create descriptive name (lowercase_with_underscores)
+4. **Data Types**: 
+   - Use NUMERIC for all decimal numbers (NOT FLOAT)
+   - Use TEXT for labels and categories
+   - Use INTEGER only for whole numbers
+5. **Missing Data**: Use 'NA' (as TEXT) for any unclear data points
+6. **Special Characters**:
+   - Replace special dashes (–, —) with standard hyphen (-)
+   - Escape quotes properly
+   - Remove non-standard Unicode
+7. **DO NOT USE**: LOAD_FILE(), BLOB, file paths, or binary functions
+8. **Format**: CREATE TABLE IF NOT EXISTS followed by INSERT statements
+
+Generate ONLY the PostgreSQL SQL (no markdown, no explanations):
 
 SQL Statement:"""
         else:
-            prompt = """You are analyzing an image. Provide a detailed but concise summary of what you see in this image.
+            prompt = """You are analyzing an image. Provide a detailed but concise summary of what you see.
             
 Focus on:
 1. Main subjects or objects
@@ -219,7 +261,7 @@ Focus on:
 Summary:"""
         
         print(f"🖼️ Analyzing image as {image_type}...")
-        result = self.get_nova_response(prompt, image_base64=image_base64)
+        result = self.get_nova_response(prompt, image_base64=image_base64, model_id="us.amazon.nova-pro-v1:0")
         
         if result['success']:
             response_text = result['response'].strip()

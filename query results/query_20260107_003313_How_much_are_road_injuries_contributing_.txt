@@ -1,0 +1,273 @@
+
+================================================================================
+💬 PROCESSING USER QUERY
+================================================================================
+Query: How much are road injuries contributing to mortality?
+
+
+================================================================================
+🚀 STARTING RETRIEVAL WORKFLOW
+================================================================================
+🚀 STARTING TEXT-TO-SQL WORKFLOW
+================================================================================
+================================================================================
+
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+🔤 STEP 1: EMBEDDING USER QUERY
+🔍 STEP 1: CLASSIFYING QUERY
+--------------------------------------------------------------------------------
+📝 Query: How much are road injuries contributing to mortality?
+
+--------------------------------------------------------------------------------
+
+📝 Query: How much are road injuries contributing to mortality?
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Generated 1024-dimensional query embedding
+
+
+--------------------------------------------------------------------------------
+📄 STEP 2: RETRIEVING RELEVANT TEXT CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 1 text chunks
+   Top similarity score: 0.0656
+   Preview: |**6**<br>~~**55**~~|~~**.8**~~<br>~~**55**~~|~~**.2**~~<br>|||~~**55**~~|~~**.3**~~<br>|||||~~**56*...
+
+
+--------------------------------------------------------------------------------
+🖼️ STEP 3: RETRIEVING RELEVANT IMAGE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 5 image chunks
+   Top similarity score: 0.2203
+   Image type: general
+   Preview: The image is a world map displaying the mortality rate per 100,000 population. The map uses a color ...
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: RETRIEVING RELEVANT TABLE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 10 table chunks
+   Top relevance score: 0.2917
+   Table name: IF
+
+
+--------------------------------------------------------------------------------
+🔀 STEP 5: COMBINING AND NORMALIZING RESULTS
+--------------------------------------------------------------------------------
+📦 Total results retrieved: 16
+   Text chunks: 1
+   Image chunks: 5
+   Table chunks: 10
+
+📊 Score distribution:
+   Highest: 0.2917
+   Lowest: 0.0004
+   Average: 0.0857
+
+
+================================================================================
+✅ RETRIEVAL WORKFLOW COMPLETED
+================================================================================
+
+📊 RETRIEVAL SUMMARY:
+   Query: How much are road injuries contributing to mortality?
+   Total results: 16
+   Chunk type distribution:
+      table: 10
+      image: 5
+      text: 1
+
+
+
+================================================================================
+🚀 STARTING RERANKING WORKFLOW
+================================================================================
+
+--------------------------------------------------------------------------------
+⚖️ STEP 1: APPLYING CHUNK TYPE WEIGHTS
+--------------------------------------------------------------------------------
+📊 Processing 16 chunks...
+
+✅ Applied type weights:
+   text: weight=1.00, count=1
+   image: weight=0.90, count=5
+   table: weight=1.10, count=10
+
+
+--------------------------------------------------------------------------------
+🤖 STEP 2: LLM-BASED RELEVANCE SCORING
+--------------------------------------------------------------------------------
+📝 Query: How much are road injuries contributing to mortality?
+🔍 Scoring 16 chunks with Nova...
+
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 277 chars)
+
+🤖 LLM Classification:
+REQUIRES_SQL: YES
+REASONING: The question is asking for specific data values or statistics related to the contribution of road injuries to mortality, which would likely be stored in a structured database.
+EXTRACTED_PARTS: [How much are road injuries contributing to mortality?]
+
+✅ Query REQUIRES SQL execution
+
+
+--------------------------------------------------------------------------------
+💾 STEP 2: GENERATING SQL QUERY
+--------------------------------------------------------------------------------
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 312 chars)
+
+   [1/15] WHO 2025_table_9... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 288 chars)
+
+   [2/15] WHO 2025_table_13... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 120 chars)
+
+✅ Generated 1 SQL query:
+
+Query 1:
+SELECT SUM(col5) AS total_mortality_from_road_injuries 
+FROM financial_data_table_66 
+WHERE col5 IS NOT NULL 
+LIMIT 100;
+
+
+--------------------------------------------------------------------------------
+⚡ STEP 3: EXECUTING SQL QUERIES
+--------------------------------------------------------------------------------
+
+Executing Query 1:
+SELECT SUM(col5) AS total_mortality_from_road_injuries 
+FROM financial_data_table_66 
+WHERE col5 IS NOT NULL 
+LIMIT 100;
+✅ Success: Retrieved 1 row(s)
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: FORMATTING RESULTS
+--------------------------------------------------------------------------------
+✅ Results formatted successfully
+
+
+================================================================================
+✅ TEXT-TO-SQL WORKFLOW COMPLETED
+================================================================================
+
+✅ Nova response received (length: 489 chars)
+
+   [3/15] WHO 2025_img_7... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 349 chars)
+
+   [4/15] WHO 2025_table_5... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 331 chars)
+
+   [5/15] WHO 2025_chunk_8... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 257 chars)
+
+   [6/15] WHO 2025_img_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 297 chars)
+
+   [7/15] WHO 2025_table_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 350 chars)
+
+   [8/15] WHO 2025_table_6... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 429 chars)
+
+   [9/15] WHO 2025_table_7... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 397 chars)
+
+   [10/15] WHO 2025_table_8... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 288 chars)
+
+   [11/15] WHO 2025_table_11... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 264 chars)
+
+   [12/15] WHO 2025_table_20... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 284 chars)
+
+   [13/15] WHO 2025_table_12... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 211 chars)
+
+   [14/15] WHO 2025_img_8... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 269 chars)
+
+   [15/15] WHO 2025_img_1... → Failed (using weighted)
+
+✅ Completed LLM relevance scoring
+
+
+--------------------------------------------------------------------------------
+🎯 STEP 3: DIVERSITY-BASED RERANKING (MMR)
+--------------------------------------------------------------------------------
+🔄 Applying MMR to 16 chunks...
+
+✅ Applied MMR reranking (λ=0.7)
+   Unique sources: 1
+   Unique sections: 15
+
+
+--------------------------------------------------------------------------------
+🏆 STEP 4: FINAL RANKING
+--------------------------------------------------------------------------------
+🎯 Combining scores for final ranking...
+
+📊 Final Ranking (Top 5):
+   1. [TABLE] WHO 2025_table_9
+      Final Score: 0.2920
+      (Retrieval: 0.292, LLM: 0.321, MMR: 0.225)
+   2. [TABLE] WHO 2025_table_13
+      Final Score: 0.1905
+      (Retrieval: 0.208, LLM: 0.229, MMR: 0.100)
+   3. [IMAGE] WHO 2025_img_7
+      Final Score: 0.1624
+      (Retrieval: 0.220, LLM: 0.198, MMR: 0.079)
+   4. [TABLE] WHO 2025_table_5
+      Final Score: 0.1488
+      (Retrieval: 0.167, LLM: 0.183, MMR: 0.068)
+   5. [TEXT] WHO 2025_chunk_8
+      Final Score: 0.0417
+      (Retrieval: 0.066, LLM: 0.066, MMR: -0.014)
+
+
+================================================================================
+✅ RERANKING WORKFLOW COMPLETED
+================================================================================
+
+📊 RERANKING SUMMARY:
+   Query: How much are road injuries contributing to mortality?
+   Input chunks: 16
+   Output chunks: 5
+   Score range: 0.0417 - 0.2920
+   Type distribution: {'table': 3, 'image': 1, 'text': 1}
+
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 646 chars)
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1098 chars)
+
+
+================================================================================
+✅ QUERY PROCESSING COMPLETED
+================================================================================
+Duration: 17.14s
+Confidence: 75.00%
+

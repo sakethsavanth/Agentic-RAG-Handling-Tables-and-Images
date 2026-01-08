@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 sys.path.append(str(Path(__file__).parent.parent))
 
 from utils import DatabaseManager, AWSBedrockClient
+from utils.mcp_client import SQLMCPClient
 
 # Load environment variables
 load_dotenv()
@@ -46,10 +47,17 @@ class TextToSQLAgent:
         
         self.db_manager = DatabaseManager()
         self.aws_client = AWSBedrockClient()
+        self.mcp_client = SQLMCPClient()
         
         # Initialize database connection
         if self.db_manager.connect():
             print("✅ Database connection established")
+        
+        # Connect to MCP server
+        if self.mcp_client.connect():
+            print("✅ MCP server connected")
+        else:
+            print("⚠️ MCP server connection failed, using direct database connection")
         
         # Build LangGraph workflow
         self.workflow = self._build_workflow()
@@ -103,19 +111,46 @@ class TextToSQLAgent:
         
         print(f"📝 Query: {query[:200]}{'...' if len(query) > 200 else ''}\n")
         
-        # Get available tables
+        # Get available tables via MCP
         try:
-            self.db_manager.cursor.execute("""
-                SELECT DISTINCT table_name, metadata
-                FROM table_chunks
-                ORDER BY table_name;
-            """)
-            
-            tables = self.db_manager.cursor.fetchall()
-            table_info = "\n".join([
-                f"- {row['table_name']}: {row['metadata'].get('description', 'No description') if row['metadata'] else 'No description'}"
-                for row in tables
-            ])
+            if self.mcp_client.is_connected():
+                mcp_result = self.mcp_client.list_tables()
+                
+                if mcp_result.get('success'):
+                    tables = mcp_result.get('tables', [])
+                    table_info = "\n".join([
+                        f"- {table['table_name']}: {table.get('description', 'No description')}"
+                        for table in tables
+                    ])
+                    print(f"📊 Found {len(tables)} table(s) via MCP")
+                else:
+                    print("⚠️ MCP list_tables failed, using direct query")
+                    # Fallback to direct query
+                    self.db_manager.cursor.execute("""
+                        SELECT DISTINCT table_name, metadata
+                        FROM table_chunks
+                        ORDER BY table_name;
+                    """)
+                    
+                    tables = self.db_manager.cursor.fetchall()
+                    table_info = "\n".join([
+                        f"- {row['table_name']}: {row['metadata'].get('description', 'No description') if row['metadata'] else 'No description'}"
+                        for row in tables
+                    ])
+            else:
+                # Direct database query as fallback
+                print("⚠️ MCP not connected, using direct database query")
+                self.db_manager.cursor.execute("""
+                    SELECT DISTINCT table_name, metadata
+                    FROM table_chunks
+                    ORDER BY table_name;
+                """)
+                
+                tables = self.db_manager.cursor.fetchall()
+                table_info = "\n".join([
+                    f"- {row['table_name']}: {row['metadata'].get('description', 'No description') if row['metadata'] else 'No description'}"
+                    for row in tables
+                ])
             
             if not tables:
                 print("⚠️ No tables available in database\n")
@@ -248,6 +283,14 @@ Important Guidelines:
 7. Use ILIKE for case-insensitive text matching
 8. Format numbers and dates appropriately
 
+CRITICAL - Handling "Top N" or "N items with condition" Queries:
+- If user asks for "N items/countries/records with [condition]", prioritize returning N results
+- Use ORDER BY to sort by relevant columns (scores DESC, dates DESC, etc.)
+- If a threshold is mentioned (e.g., "scores more than 75"), consider it as guidance
+- When threshold might be too strict, use ORDER BY + LIMIT to get top N results instead
+- Example: "5 countries with scores more than 75" → Use ORDER BY score DESC LIMIT 5
+- Only use strict WHERE conditions when user explicitly wants filtering (e.g., "only countries with score exactly 80")
+
 Respond with ONLY the SQL query (or multiple queries if needed, separated by semicolons).
 Do not include any explanations or markdown formatting.
 
@@ -295,9 +338,9 @@ LIMIT 10;"""
         return state
     
     def execute_sql(self, state: TextToSQLState) -> TextToSQLState:
-        """Execute SQL queries against the database"""
+        """Execute SQL queries against the database via MCP"""
         print("\n" + "-" * 80)
-        print("⚡ STEP 3: EXECUTING SQL QUERIES")
+        print("⚡ STEP 3: EXECUTING SQL QUERIES VIA MCP")
         print("-" * 80)
         
         sql_queries = state.get('sql_queries', [])
@@ -310,31 +353,84 @@ LIMIT 10;"""
         results = []
         
         for i, sql_query in enumerate(sql_queries, 1):
-            print(f"\nExecuting Query {i}:")
+            print(f"\nExecuting Query {i} via MCP:")
             print(sql_query)
             
             try:
-                self.db_manager.cursor.execute(sql_query)
-                rows = self.db_manager.cursor.fetchall()
-                
-                # Convert to list of dicts
-                if rows:
-                    result_data = [dict(row) for row in rows]
-                    results.append({
-                        'query': sql_query,
-                        'success': True,
-                        'rows': result_data,
-                        'row_count': len(result_data)
-                    })
-                    print(f"✅ Success: Retrieved {len(result_data)} row(s)")
+                # Use MCP client if connected, otherwise fallback to direct connection
+                if self.mcp_client.is_connected():
+                    print("   Using MCP server for query execution...")
+                    mcp_result = self.mcp_client.execute_query(sql_query)
+                    
+                    if mcp_result.get('success'):
+                        result_data = mcp_result.get('rows', [])
+                        results.append({
+                            'query': sql_query,
+                            'success': True,
+                            'rows': result_data,
+                            'row_count': mcp_result.get('row_count', len(result_data))
+                        })
+                        print(f"✅ Success (via MCP): Retrieved {len(result_data)} row(s)")
+                    else:
+                        # Get detailed error message
+                        error_msg = mcp_result.get('error', mcp_result.get('message', 'Unknown error'))
+                        print(f"❌ Error (via MCP): {error_msg}")
+                        
+                        # Try fallback to direct connection
+                        print("   🔄 Attempting fallback to direct database connection...")
+                        try:
+                            self.db_manager.cursor.execute(sql_query)
+                            rows = self.db_manager.cursor.fetchall()
+                            
+                            if rows:
+                                result_data = [dict(row) for row in rows]
+                                results.append({
+                                    'query': sql_query,
+                                    'success': True,
+                                    'rows': result_data,
+                                    'row_count': len(result_data)
+                                })
+                                print(f"✅ Success (fallback): Retrieved {len(result_data)} row(s)")
+                            else:
+                                results.append({
+                                    'query': sql_query,
+                                    'success': True,
+                                    'rows': [],
+                                    'row_count': 0
+                                })
+                                print("✅ Success (fallback): No rows returned")
+                        except Exception as fallback_error:
+                            print(f"❌ Fallback also failed: {str(fallback_error)}")
+                            results.append({
+                                'query': sql_query,
+                                'success': False,
+                                'error': f"MCP error: {error_msg}, Fallback error: {str(fallback_error)}",
+                                'rows': [],
+                                'row_count': 0
+                            })
                 else:
-                    results.append({
-                        'query': sql_query,
-                        'success': True,
-                        'rows': [],
-                        'row_count': 0
-                    })
-                    print("✅ Success: No rows returned")
+                    # Fallback to direct database connection
+                    print("⚠️ MCP not connected, using direct database connection")
+                    self.db_manager.cursor.execute(sql_query)
+                    rows = self.db_manager.cursor.fetchall()
+                    
+                    if rows:
+                        result_data = [dict(row) for row in rows]
+                        results.append({
+                            'query': sql_query,
+                            'success': True,
+                            'rows': result_data,
+                            'row_count': len(result_data)
+                        })
+                        print(f"✅ Success (direct): Retrieved {len(result_data)} row(s)")
+                    else:
+                        results.append({
+                            'query': sql_query,
+                            'success': True,
+                            'rows': [],
+                            'row_count': 0
+                        })
+                        print("✅ Success (direct): No rows returned")
                     
             except Exception as e:
                 print(f"❌ Error: {str(e)}")

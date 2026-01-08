@@ -18,6 +18,7 @@ from agents.retrieval_agent import RetrievalAgent
 from agents.reranking_agent import RerankingAgent
 from agents.text_to_sql_agent import TextToSQLAgent
 from utils import AWSBedrockClient
+from utils.logging_utils import TeeLogger, get_log_filename
 
 # Load environment variables
 load_dotenv()
@@ -31,7 +32,7 @@ class ChatbotOrchestrator:
     3. Answer Comparison & Confidence Scoring
     """
     
-    def __init__(self, retrieval_top_k: int = 10, rerank_top_k: int = 5):
+    def __init__(self, retrieval_top_k: int = 10, rerank_top_k: int = 5, enable_logging: bool = True):
         """Initialize all agents and components"""
         print("\n" + "=" * 80)
         print("🤖 INITIALIZING CHATBOT ORCHESTRATOR")
@@ -41,26 +42,46 @@ class ChatbotOrchestrator:
         self.reranking_agent = RerankingAgent(top_k=rerank_top_k)
         self.text_to_sql_agent = TextToSQLAgent()
         self.aws_client = AWSBedrockClient()
+        self.enable_logging = enable_logging
         
         print("✅ Chatbot Orchestrator initialized successfully!\n")
     
-    def process_user_query(self, user_query: str) -> Dict[str, Any]:
+    def process_user_query(self, user_query: str, use_cohere_rerank: bool = False) -> Dict[str, Any]:
         """
         Process a user query through the complete pipeline
         
         Args:
             user_query: User's natural language question
+            use_cohere_rerank: Whether to use Cohere for reranking (default: False)
             
         Returns:
             Dictionary containing all results, process logs, and confidence scores
         """
+        # Set up logging if enabled
+        if self.enable_logging:
+            log_filename = get_log_filename(prefix="query", query=user_query)
+            tee_logger = TeeLogger(log_folder="query results", log_name=log_filename)
+            tee_logger.__enter__()  # Start capturing stdout
+        else:
+            tee_logger = None
+        
+        try:
+            return self._process_query_internal(user_query, use_cohere_rerank)
+        finally:
+            # Clean up logger
+            if tee_logger:
+                tee_logger.__exit__(None, None, None)
+    
+    def _process_query_internal(self, user_query: str, use_cohere_rerank: bool = False) -> Dict[str, Any]:
+        """Internal query processing with logging already set up"""
         start_time = datetime.now()
         process_log = []
         
         print("\n" + "=" * 80)
         print("💬 PROCESSING USER QUERY")
         print("=" * 80)
-        print(f"Query: {user_query}\n")
+        print(f"Query: {user_query}")
+        print(f"Reranking Method: {'Cohere API' if use_cohere_rerank else 'LLM-based'}\n")
         
         # ==================================================================
         # PARALLEL EXECUTION: RAG Path + SQL Path
@@ -68,7 +89,7 @@ class ChatbotOrchestrator:
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             # Submit both paths concurrently
-            rag_future = executor.submit(self._rag_pipeline, user_query, process_log)
+            rag_future = executor.submit(self._rag_pipeline, user_query, process_log, use_cohere_rerank)
             sql_future = executor.submit(self._sql_pipeline, user_query, process_log)
             
             # Wait for both to complete
@@ -103,6 +124,7 @@ class ChatbotOrchestrator:
             'rag_sources': rag_result['sources'],
             'retrieved_chunks_count': rag_result['retrieved_count'],
             'reranked_chunks_count': rag_result['reranked_count'],
+            'reranking_method': 'Cohere API' if use_cohere_rerank else 'LLM-based',
             
             # SQL Path Results
             'sql_executed': sql_result['executed'],
@@ -129,7 +151,7 @@ class ChatbotOrchestrator:
         
         return final_result
     
-    def _rag_pipeline(self, query: str, process_log: List) -> Dict[str, Any]:
+    def _rag_pipeline(self, query: str, process_log: List, use_cohere: bool = False) -> Dict[str, Any]:
         """Execute the RAG pipeline: Retrieval → Reranking → LLM"""
         try:
             # Step 1: Retrieval
@@ -151,24 +173,26 @@ class ChatbotOrchestrator:
             })
             
             # Step 2: Reranking
+            rerank_method = 'Cohere API' if use_cohere else 'LLM-based'
             process_log.append({
                 'step': 'Reranking',
-                'agent': 'RerankingAgent',
+                'agent': f'RerankingAgent ({rerank_method})',
                 'status': 'started',
                 'timestamp': datetime.now().isoformat()
             })
             
             reranking_result = self.reranking_agent.rerank(
                 query=query,
-                retrieved_chunks=retrieval_result['results']
+                retrieved_chunks=retrieval_result['results'],
+                use_cohere=use_cohere
             )
             
             process_log.append({
                 'step': 'Reranking',
-                'agent': 'RerankingAgent',
+                'agent': f'RerankingAgent ({rerank_method})',
                 'status': 'completed',
                 'timestamp': datetime.now().isoformat(),
-                'output': f"Reranked to top {len(reranking_result['reranked_chunks'])} chunks"
+                'output': f"Reranked to top {len(reranking_result['reranked_chunks'])} chunks using {rerank_method}"
             })
             
             # Step 3: LLM Generation
@@ -281,31 +305,79 @@ class ChatbotOrchestrator:
     
     def _generate_llm_response(self, query: str, reranked_chunks: List[Dict]) -> str:
         """Generate LLM response from reranked chunks"""
-        # Build context from reranked chunks
+        # Build context from reranked chunks with more content
         context_parts = []
-        for i, chunk in enumerate(reranked_chunks[:5], 1):  # Top 5 chunks
-            context_parts.append(f"[Source {i} - {chunk['chunk_type']}]")
-            context_parts.append(f"Document: {chunk['source_document']}")
-            context_parts.append(f"Content: {chunk['content'][:500]}...")
-            context_parts.append("")
+        
+        # Separate chunks by type for better organization
+        text_chunks = [c for c in reranked_chunks if c['chunk_type'] == 'text']
+        table_chunks = [c for c in reranked_chunks if c['chunk_type'] == 'table']
+        image_chunks = [c for c in reranked_chunks if c['chunk_type'] == 'image']
+        
+        # Add text chunks (full content for top 3, then truncated)
+        if text_chunks:
+            context_parts.append("=== TEXT CONTENT ===")
+            for i, chunk in enumerate(text_chunks[:5], 1):
+                context_parts.append(f"\n[Text Source {i}]")
+                context_parts.append(f"Document: {chunk['source_document']}")
+                # Use more content for top chunks
+                content_limit = 1000 if i <= 3 else 500
+                content = chunk['content'][:content_limit]
+                context_parts.append(f"Content: {content}")
+                if len(chunk['content']) > content_limit:
+                    context_parts.append("[Content continues...]")
+        
+        # Add table chunks (tables are often key data)
+        if table_chunks:
+            context_parts.append("\n=== TABLE DATA ===")
+            for i, chunk in enumerate(table_chunks[:5], 1):
+                context_parts.append(f"\n[Table Source {i}]")
+                context_parts.append(f"Document: {chunk['source_document']}")
+                # Tables should show full content up to 1500 chars
+                content = chunk['content'][:1500]
+                context_parts.append(f"Table Content:\n{content}")
+                if len(chunk['content']) > 1500:
+                    context_parts.append("[Table continues...]")
+        
+        # Add image descriptions
+        if image_chunks:
+            context_parts.append("\n=== IMAGE DESCRIPTIONS ===")
+            for i, chunk in enumerate(image_chunks[:3], 1):
+                context_parts.append(f"\n[Image Source {i}]")
+                context_parts.append(f"Document: {chunk['source_document']}")
+                context_parts.append(f"Description: {chunk['content'][:800]}")
         
         context = "\n".join(context_parts)
         
-        # Create prompt
-        prompt = f"""You are a helpful AI assistant. Answer the user's question based on the provided context.
+        # Create improved prompt
+        prompt = f"""You are an expert analyst with access to retrieved documents. Your task is to answer the question using the information provided in the context below.
 
-Context from Retrieved Documents:
+📄 RETRIEVED CONTEXT:
 {context}
 
-User Question: {query}
+❓ USER QUESTION: {query}
 
-Instructions:
-- Provide a clear, accurate answer based on the context
-- If the context doesn't contain enough information, say so
-- Cite sources when possible (e.g., "According to Business Ready 2025...")
-- Be concise but comprehensive
+📋 INSTRUCTIONS:
+1. CAREFULLY READ all the provided context including text, tables, and image descriptions
+2. EXTRACT and SYNTHESIZE relevant information from the context to answer the question
+3. For quantitative questions, look for numbers, statistics, and data in the tables and text
+4. For qualitative questions, look for descriptions, explanations, and narrative content
+5. If multiple sources mention the topic, combine the information coherently
+6. CITE specific sources when providing information (e.g., "According to the WHO 2025 document...")
+7. If the exact answer isn't in the context BUT related information exists:
+   - Provide the related information
+   - Explain what information is available and what is missing
+   - Suggest what additional information would be needed
+8. ONLY say information is unavailable if:
+   - The context is completely unrelated to the question
+   - After thorough review, no relevant information exists
 
-Answer:"""
+⚠️ IMPORTANT:
+- DO NOT give up easily - examine tables, text, and descriptions thoroughly
+- TABLES often contain key numerical data - read them carefully
+- Image descriptions may contain visual data representations
+- Look for partial answers or related information before saying "not found"
+
+💬 YOUR ANSWER:"""
 
         # Call LLM
         result = self.aws_client.get_nova_response(
@@ -314,7 +386,64 @@ Answer:"""
         )
         
         if result['success']:
-            return result['response']
+            response = result['response']
+            
+            # Check if response is too generic or unhelpful
+            unhelpful_phrases = [
+                "does not contain",
+                "doesn't contain", 
+                "not provide",
+                "does not provide",
+                "cannot find",
+                "unable to find",
+                "no information",
+                "no specific",
+                "would be required",
+                "please provide",
+                "additional documents",
+                "different source"
+            ]
+            
+            # Count how many unhelpful phrases appear
+            unhelpful_count = sum(1 for phrase in unhelpful_phrases if phrase.lower() in response.lower())
+            
+            # If response seems unhelpful but we have chunks, try a second pass with stronger prompt
+            if unhelpful_count >= 2 and len(reranked_chunks) > 0:
+                print("⚠️ First response was generic, attempting focused retry...")
+                
+                # Build a more focused context with ALL content from top chunks
+                focused_context = []
+                for i, chunk in enumerate(reranked_chunks[:8], 1):
+                    focused_context.append(f"\n{'='*60}")
+                    focused_context.append(f"SOURCE {i}: {chunk['source_document']} ({chunk['chunk_type']})")
+                    focused_context.append(f"{'='*60}")
+                    focused_context.append(chunk['content'])  # Full content, no truncation
+                
+                retry_prompt = f"""You previously said information was unavailable, but you have retrieved documents. Let's try again more carefully.
+
+QUESTION: {query}
+
+FULL CONTEXT FROM RETRIEVED DOCUMENTS:
+{chr(10).join(focused_context)}
+
+CRITICAL INSTRUCTIONS:
+1. Read EVERY piece of the context above thoroughly
+2. Look for ANY information related to: {query}
+3. Even if you can't answer exactly, provide what IS available in the documents
+4. List ALL relevant facts, numbers, or descriptions you find
+5. DO NOT say information is missing unless you've examined everything
+
+What information can you find related to the question?"""
+                
+                retry_result = self.aws_client.get_nova_response(
+                    prompt=retry_prompt,
+                    model_id="us.amazon.nova-pro-v1:0"
+                )
+                
+                if retry_result['success']:
+                    return retry_result['response']
+            
+            return response
         else:
             return f"Error generating response: {result.get('error', 'Unknown error')}"
     

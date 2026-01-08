@@ -181,12 +181,16 @@ class TwoPassHybridChunker:
         print(f"   Target range: 700-900 tokens\n")
 
 
-def extract_tables_from_markdown(markdown_text: str) -> List[Dict[str, Any]]:
+def extract_tables_from_markdown(markdown_text: str, context_lines: int = 5) -> List[Dict[str, Any]]:
     """
-    Extract tables from markdown text
+    Extract tables from markdown text along with surrounding context
+    
+    Args:
+        markdown_text: The markdown text to extract tables from
+        context_lines: Number of lines before/after table to capture as context
     
     Returns:
-        List of dictionaries containing table information
+        List of dictionaries containing table information with context
     """
     tables = []
     lines = markdown_text.split('\n')
@@ -194,32 +198,52 @@ def extract_tables_from_markdown(markdown_text: str) -> List[Dict[str, Any]]:
     current_table = []
     in_table = False
     table_idx = 0
+    table_start_idx = 0
     
-    for line in lines:
+    for line_idx, line in enumerate(lines):
         # Check if line is part of a markdown table (contains |)
         if '|' in line and line.strip():
             if not in_table:
                 in_table = True
                 table_idx += 1
                 current_table = []
+                table_start_idx = line_idx
             current_table.append(line)
         else:
             if in_table and current_table:
-                # End of table
+                # End of table - capture context
+                table_end_idx = line_idx
+                
+                # Get preceding context (up to context_lines before table)
+                context_before_start = max(0, table_start_idx - context_lines)
+                context_before = '\n'.join(lines[context_before_start:table_start_idx])
+                
+                # Get following context (up to context_lines after table)
+                context_after_end = min(len(lines), table_end_idx + context_lines)
+                context_after = '\n'.join(lines[table_end_idx:context_after_end])
+                
                 tables.append({
                     'table_id': f"table_{table_idx}",
                     'content': '\n'.join(current_table),
                     'row_count': len(current_table) - 1,  # Minus header
+                    'context_before': context_before.strip(),
+                    'context_after': context_after.strip(),
                 })
                 current_table = []
                 in_table = False
     
     # Handle last table if document ends with one
     if in_table and current_table:
+        table_end_idx = len(lines)
+        context_before_start = max(0, table_start_idx - context_lines)
+        context_before = '\n'.join(lines[context_before_start:table_start_idx])
+        
         tables.append({
             'table_id': f"table_{table_idx}",
             'content': '\n'.join(current_table),
             'row_count': len(current_table) - 1,
+            'context_before': context_before.strip(),
+            'context_after': '',
         })
     
     return tables

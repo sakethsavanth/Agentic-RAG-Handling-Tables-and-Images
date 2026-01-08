@@ -62,6 +62,9 @@ class RerankingAgent:
             'table': 1.1      # Slightly higher as tables contain structured data
         }
         
+        # Initialize Cohere MCP client (lazy initialization)
+        self.cohere_client = None
+        
         # Build LangGraph workflow
         self.workflow = self._build_workflow()
         
@@ -311,7 +314,7 @@ Score (0.0-1.0):"""
         return state
     
     def rerank(self, query: str, retrieved_chunks: List[Dict[str, Any]], 
-               top_k: int = None) -> Dict[str, Any]:
+               top_k: int = None, use_cohere: bool = False) -> Dict[str, Any]:
         """
         Execute the reranking workflow
         
@@ -319,6 +322,7 @@ Score (0.0-1.0):"""
             query: User query string
             retrieved_chunks: List of chunks from retrieval agent
             top_k: Number of top chunks to return
+            use_cohere: Whether to use Cohere API for reranking
             
         Returns:
             Dictionary with reranked results
@@ -327,6 +331,11 @@ Score (0.0-1.0):"""
         print("🚀 STARTING RERANKING WORKFLOW")
         print("=" * 80)
         
+        # Check if Cohere reranking is requested
+        if use_cohere:
+            return self._rerank_with_cohere(query, retrieved_chunks, top_k)
+        
+        # Otherwise, use standard LLM-based reranking
         # Initial state
         initial_state = {
             'query': query,
@@ -369,6 +378,108 @@ Score (0.0-1.0):"""
             'reranked_chunks': reranked,
             'num_results': len(reranked)
         }
+    
+    def _rerank_with_cohere(self, query: str, retrieved_chunks: List[Dict[str, Any]], 
+                           top_k: int = None) -> Dict[str, Any]:
+        """
+        Rerank using Cohere API via MCP
+        
+        Args:
+            query: User query string
+            retrieved_chunks: List of chunks from retrieval agent
+            top_k: Number of top chunks to return
+            
+        Returns:
+            Dictionary with reranked results
+        """
+        print("\n🤖 USING COHERE API FOR RERANKING")
+        print("-" * 80 + "\n")
+        
+        if not retrieved_chunks:
+            print("⚠️ No chunks to rerank\n")
+            return {
+                'query': query,
+                'reranked_chunks': [],
+                'num_results': 0
+            }
+        
+        # Initialize Cohere client if needed
+        if self.cohere_client is None:
+            try:
+                from cohere_mcp import CohereMCPClient
+                self.cohere_client = CohereMCPClient()
+                print("✅ Cohere MCP client initialized")
+            except Exception as e:
+                print(f"❌ Failed to initialize Cohere client: {str(e)}")
+                print("⚠️ Falling back to standard LLM-based reranking\n")
+                return self.rerank(query, retrieved_chunks, top_k, use_cohere=False)
+        
+        # Check if Cohere is available
+        status = self.cohere_client.check_status()
+        if status.get('status') != 'operational':
+            print(f"⚠️ Cohere API not available: {status.get('message', 'Unknown error')}")
+            print("⚠️ Falling back to standard LLM-based reranking\n")
+            return self.rerank(query, retrieved_chunks, top_k, use_cohere=False)
+        
+        print(f"📝 Query: {query[:100]}{'...' if len(query) > 100 else ''}")
+        print(f"🔍 Reranking {len(retrieved_chunks)} chunks with Cohere...\n")
+        
+        # Call Cohere MCP for reranking
+        result = self.cohere_client.rerank(
+            query=query,
+            documents=retrieved_chunks,
+            top_k=top_k if top_k else self.top_k
+        )
+        
+        if result.get('success'):
+            reranked_docs = result.get('reranked_documents', [])
+            
+            # Convert Cohere results to our format
+            reranked_chunks = []
+            for doc in reranked_docs:
+                # Preserve original chunk structure and add Cohere score
+                chunk = {
+                    'chunk_id': doc.get('chunk_id', ''),
+                    'chunk_type': doc.get('chunk_type', 'text'),
+                    'content': doc.get('content', ''),
+                    'source_document': doc.get('source_document', ''),
+                    'cohere_score': doc.get('cohere_score', 0.0),
+                    'final_score': doc.get('cohere_score', 0.0),  # Use Cohere score as final score
+                    'metadata': doc.get('metadata', {})
+                }
+                
+                # Add original retrieval score if available
+                original = next((c for c in retrieved_chunks if c.get('chunk_id') == doc.get('chunk_id')), None)
+                if original:
+                    chunk['similarity_score'] = original.get('similarity_score', 0.0)
+                    chunk['section_id'] = original.get('section_id', '')
+                
+                reranked_chunks.append(chunk)
+            
+            print(f"✅ Cohere reranking completed")
+            print(f"   Model: {result.get('model_used', 'unknown')}")
+            print(f"   Output chunks: {len(reranked_chunks)}")
+            
+            if reranked_chunks:
+                print(f"   Score range: {reranked_chunks[-1]['cohere_score']:.4f} - {reranked_chunks[0]['cohere_score']:.4f}")
+                
+                # Type distribution
+                from collections import Counter
+                type_counts = Counter([c['chunk_type'] for c in reranked_chunks])
+                print(f"   Type distribution: {dict(type_counts)}")
+            
+            print()
+            
+            return {
+                'query': query,
+                'reranked_chunks': reranked_chunks,
+                'num_results': len(reranked_chunks),
+                'reranking_method': 'cohere'
+            }
+        else:
+            print(f"❌ Cohere reranking failed: {result.get('error', 'Unknown error')}")
+            print("⚠️ Falling back to standard LLM-based reranking\n")
+            return self.rerank(query, retrieved_chunks, top_k, use_cohere=False)
 
 
 def main():

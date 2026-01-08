@@ -1,0 +1,316 @@
+
+================================================================================
+💬 PROCESSING USER QUERY
+================================================================================
+Query: List 5 countries with highest pillar scores. 
+Reranking Method: Cohere API
+
+
+================================================================================
+🚀 STARTING RETRIEVAL WORKFLOW
+================================================================================
+================================================================================
+
+🚀 STARTING TEXT-TO-SQL WORKFLOW
+================================================================================
+--------------------------------------------------------------------------------
+
+🔤 STEP 1: EMBEDDING USER QUERY
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+🔍 STEP 1: CLASSIFYING QUERY
+
+--------------------------------------------------------------------------------📝 Query: List 5 countries with highest pillar scores. 
+
+
+📝 Query: List 5 countries with highest pillar scores. 
+
+⚠️ MCP list_tables failed, using direct query
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Generated 1024-dimensional query embedding
+
+
+--------------------------------------------------------------------------------
+📄 STEP 2: RETRIEVING RELEVANT TEXT CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 text chunks
+   Top similarity score: 0.4752
+   Preview: ### APPENDIX A: PILLAR SCORES  
+The overall pillar scores for each of the three pillars—Regulatory F...
+
+
+--------------------------------------------------------------------------------
+🖼️ STEP 3: RETRIEVING RELEVANT IMAGE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 image chunks
+   Top similarity score: 0.1203
+   Image type: general
+   Preview: The image shows two people working together on a construction project. They are both wearing protect...
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: RETRIEVING RELEVANT TABLE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 5 table chunks
+   Top relevance score: 1.0000
+   Table name: IF
+
+
+--------------------------------------------------------------------------------
+🔀 STEP 5: COMBINING AND NORMALIZING RESULTS
+--------------------------------------------------------------------------------
+📦 Total results retrieved: 13
+   Text chunks: 4
+   Image chunks: 4
+   Table chunks: 5
+
+📊 Score distribution:
+   Highest: 1.0000
+   Lowest: 0.0180
+   Average: 0.3797
+
+
+================================================================================
+✅ RETRIEVAL WORKFLOW COMPLETED
+================================================================================
+
+📊 RETRIEVAL SUMMARY:
+   Query: List 5 countries with highest pillar scores. 
+   Total results: 13
+   Chunk type distribution:
+      table: 5
+      text: 4
+      image: 4
+
+
+
+================================================================================
+🚀 STARTING RERANKING WORKFLOW
+================================================================================
+
+🤖 USING COHERE API FOR RERANKING
+--------------------------------------------------------------------------------
+
+❌ Failed to initialize Cohere client: No module named 'fastapi'
+⚠️ Falling back to standard LLM-based reranking
+
+
+================================================================================
+🚀 STARTING RERANKING WORKFLOW
+================================================================================
+
+--------------------------------------------------------------------------------
+⚖️ STEP 1: APPLYING CHUNK TYPE WEIGHTS
+--------------------------------------------------------------------------------
+📊 Processing 13 chunks...
+
+✅ Applied type weights:
+   text: weight=1.00, count=4
+   image: weight=0.90, count=4
+   table: weight=1.10, count=5
+
+
+--------------------------------------------------------------------------------
+🤖 STEP 2: LLM-BASED RELEVANCE SCORING
+--------------------------------------------------------------------------------
+📝 Query: List 5 countries with highest pillar scores. 
+🔍 Scoring 13 chunks with Nova...
+
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 327 chars)
+
+🤖 LLM Classification:
+REQUIRES_SQL: YES
+REASONING: The question asks for specific data values (pillar scores) and comparisons (highest scores) that would be stored in database tables. It mentions specific entities (countries and scores) that are likely to be found in structured tables.
+EXTRACTED_PARTS: [List 5 countries with highest pillar scores]
+
+✅ Query REQUIRES SQL execution
+
+
+--------------------------------------------------------------------------------
+💾 STEP 2: GENERATING SQL QUERY
+--------------------------------------------------------------------------------
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 504 chars)
+
+   [1/13] Business Ready 2025_table_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 486 chars)
+
+   [2/13] Business Ready 2025_table_5... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 478 chars)
+
+   [3/13] Business Ready 2025_table_6... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 853 chars)
+
+✅ Generated 1 SQL query:
+
+Query 1:
+WITH combined_scores AS (
+    SELECT pillar_i_country AS country, pillar_i_score AS score FROM pillar_performance_data_table_4
+    UNION ALL
+    SELECT pillar_ii_country AS country, pillar_ii_score AS score FROM pillar_performance_data_table_4
+    UNION ALL
+    SELECT pillar_iii_country AS country, pillar_iii_score AS score FROM pillar_performance_data_table_4
+    UNION ALL
+    SELECT pillar_i_country AS country, pillar_i_score AS score FROM appendix_a_pillar_scores_table_5
+    UNION ALL
+    SELECT pillar_ii_country AS country, pillar_ii_score AS score FROM appendix_a_pillar_scores_table_5
+    UNION ALL
+    SELECT pillar_iii_country AS country, pillar_iii_score AS score FROM appendix_a_pillar_scores_table_5
+)
+SELECT country, MAX(score) AS max_score
+FROM combined_scores
+WHERE score IS NOT NULL
+GROUP BY country
+ORDER BY max_score DESC
+LIMIT 5;
+
+
+--------------------------------------------------------------------------------
+⚡ STEP 3: EXECUTING SQL QUERIES VIA MCP
+--------------------------------------------------------------------------------
+
+Executing Query 1 via MCP:
+WITH combined_scores AS (
+    SELECT pillar_i_country AS country, pillar_i_score AS score FROM pillar_performance_data_table_4
+    UNION ALL
+    SELECT pillar_ii_country AS country, pillar_ii_score AS score FROM pillar_performance_data_table_4
+    UNION ALL
+    SELECT pillar_iii_country AS country, pillar_iii_score AS score FROM pillar_performance_data_table_4
+    UNION ALL
+    SELECT pillar_i_country AS country, pillar_i_score AS score FROM appendix_a_pillar_scores_table_5
+    UNION ALL
+    SELECT pillar_ii_country AS country, pillar_ii_score AS score FROM appendix_a_pillar_scores_table_5
+    UNION ALL
+    SELECT pillar_iii_country AS country, pillar_iii_score AS score FROM appendix_a_pillar_scores_table_5
+)
+SELECT country, MAX(score) AS max_score
+FROM combined_scores
+WHERE score IS NOT NULL
+GROUP BY country
+ORDER BY max_score DESC
+LIMIT 5;
+   Using MCP server for query execution...
+❌ Error (via MCP): Invalid request parameters
+   🔄 Attempting fallback to direct database connection...
+✅ Success (fallback): Retrieved 5 row(s)
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: FORMATTING RESULTS
+--------------------------------------------------------------------------------
+✅ Results formatted successfully
+
+
+================================================================================
+✅ TEXT-TO-SQL WORKFLOW COMPLETED
+================================================================================
+
+✅ Nova response received (length: 333 chars)
+
+   [4/13] Business Ready 2025_table_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 500 chars)
+
+   [5/13] Business Ready 2025_chunk_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 431 chars)
+
+   [6/13] Business Ready 2025_chunk_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 381 chars)
+
+   [7/13] Business Ready 2025_chunk_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 291 chars)
+
+   [8/13] Business Ready 2025_chunk_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 267 chars)
+
+   [9/13] Business Ready 2025_img_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 251 chars)
+
+   [10/13] Business Ready 2025_img_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 304 chars)
+
+   [11/13] Business Ready 2025_img_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 323 chars)
+
+   [12/13] Business Ready 2025_table_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 279 chars)
+
+   [13/13] Business Ready 2025_img_3... → Failed (using weighted)
+
+✅ Completed LLM relevance scoring
+
+
+--------------------------------------------------------------------------------
+🎯 STEP 3: DIVERSITY-BASED RERANKING (MMR)
+--------------------------------------------------------------------------------
+🔄 Applying MMR to 13 chunks...
+
+✅ Applied MMR reranking (λ=0.7)
+   Unique sources: 1
+   Unique sections: 10
+
+
+--------------------------------------------------------------------------------
+🏆 STEP 4: FINAL RANKING
+--------------------------------------------------------------------------------
+🎯 Combining scores for final ranking...
+
+📊 Final Ranking (Top 5):
+   1. [TABLE] Business Ready 2025_table_4
+      Final Score: 1.0010
+      (Retrieval: 1.000, LLM: 1.100, MMR: 0.770)
+   2. [TABLE] Business Ready 2025_table_5
+      Final Score: 0.9830
+      (Retrieval: 1.000, LLM: 1.100, MMR: 0.710)
+   3. [TABLE] Business Ready 2025_table_6
+      Final Score: 0.9830
+      (Retrieval: 1.000, LLM: 1.100, MMR: 0.710)
+   4. [TABLE] Business Ready 2025_table_3
+      Final Score: 0.5540
+      (Retrieval: 0.571, LLM: 0.629, MMR: 0.380)
+   5. [TEXT] Business Ready 2025_chunk_4
+      Final Score: 0.4144
+      (Retrieval: 0.475, LLM: 0.475, MMR: 0.273)
+
+
+================================================================================
+✅ RERANKING WORKFLOW COMPLETED
+================================================================================
+
+📊 RERANKING SUMMARY:
+   Query: List 5 countries with highest pillar scores. 
+   Input chunks: 13
+   Output chunks: 5
+   Score range: 0.4144 - 1.0010
+   Type distribution: {'table': 4, 'text': 1}
+
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1125 chars)
+
+⚠️ First response was generic, attempting focused retry...
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1079 chars)
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1250 chars)
+
+
+================================================================================
+✅ QUERY PROCESSING COMPLETED
+================================================================================
+Duration: 18.44s
+Confidence: 70.00%
+

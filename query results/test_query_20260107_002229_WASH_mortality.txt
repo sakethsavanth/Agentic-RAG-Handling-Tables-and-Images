@@ -1,0 +1,16 @@
+
+======================================================================
+💬 PROCESSING USER QUERY
+======================================================================
+Query: What is the WASH mortality for African Region?
+
+🤖 Step 1: Classification
+   REQUIRES_SQL: YES
+   Reasoning: Specific statistic for specific region
+
+🤖 Step 2: SQL Generation
+   Generated query:
+   SELECT mortality_rate FROM wash_data
+   WHERE region = 'African Region';
+
+✅ Query processing complete!

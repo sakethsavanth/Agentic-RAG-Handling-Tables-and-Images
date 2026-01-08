@@ -149,13 +149,13 @@ def execute_insert_data(sql_query: str) -> dict:
 
 def _execute_sql_query_impl(sql_query: str) -> dict:
     """
-    Execute any SQL query in PostgreSQL
+    Execute a SQL SELECT query in PostgreSQL and return results
     
     Args:
-        sql_query: The SQL query to execute
+        sql_query: The SQL SELECT query to execute
         
     Returns:
-        Dictionary with success status and message
+        Dictionary with success status, rows, and metadata
     """
     print(f"\n🔧 MCP Tool Called: execute_sql_query")
     print(f"📝 SQL Query received:\n{sql_query}\n")
@@ -164,23 +164,47 @@ def _execute_sql_query_impl(sql_query: str) -> dict:
     if not initialize_db():
         return {
             "success": False,
-            "message": "Failed to connect to database"
+            "message": "Failed to connect to database",
+            "rows": [],
+            "row_count": 0
         }
     
-    # Execute the SQL query
-    success, message = db_manager.execute_sql(sql_query)
-    
-    if success:
-        print(f"✅ SQL executed successfully!")
-        return {
-            "success": True,
-            "message": f"Query executed successfully: {message}"
-        }
-    else:
-        print(f"❌ SQL execution failed: {message}")
+    try:
+        # Execute the SELECT query
+        db_manager.cursor.execute(sql_query)
+        
+        # Fetch all results
+        rows = db_manager.cursor.fetchall()
+        
+        # Convert to list of dicts
+        if rows:
+            result_data = [dict(row) for row in rows]
+            print(f"✅ Query executed successfully! Retrieved {len(result_data)} row(s)")
+            return {
+                "success": True,
+                "message": f"Query executed successfully",
+                "rows": result_data,
+                "row_count": len(result_data),
+                "columns": list(result_data[0].keys()) if result_data else []
+            }
+        else:
+            print(f"✅ Query executed successfully! No rows returned")
+            return {
+                "success": True,
+                "message": "Query executed successfully",
+                "rows": [],
+                "row_count": 0,
+                "columns": []
+            }
+            
+    except Exception as e:
+        print(f"❌ SQL execution failed: {str(e)}")
         return {
             "success": False,
-            "message": f"Failed to execute SQL: {message}"
+            "message": f"Failed to execute SQL: {str(e)}",
+            "rows": [],
+            "row_count": 0,
+            "error": str(e)
         }
 
 
@@ -199,13 +223,162 @@ def execute_sql_query(sql_query: str) -> dict:
     return _execute_sql_query_impl(sql_query)
 
 
+def _list_tables_impl() -> dict:
+    """
+    List all tables in the database
+    
+    Returns:
+        Dictionary with list of tables
+    """
+    print(f"\n🔧 MCP Tool Called: list_tables")
+    
+    # Initialize DB if not already done
+    if not initialize_db():
+        return {
+            "success": False,
+            "message": "Failed to connect to database",
+            "tables": []
+        }
+    
+    try:
+        # Query to get all table names from table_chunks
+        db_manager.cursor.execute("""
+            SELECT DISTINCT table_name, metadata
+            FROM table_chunks
+            ORDER BY table_name;
+        """)
+        
+        rows = db_manager.cursor.fetchall()
+        
+        tables = []
+        for row in rows:
+            tables.append({
+                "table_name": row['table_name'],
+                "description": row['metadata'].get('description', 'No description') if row['metadata'] else 'No description'
+            })
+        
+        print(f"✅ Found {len(tables)} table(s)")
+        return {
+            "success": True,
+            "message": f"Found {len(tables)} table(s)",
+            "tables": tables,
+            "count": len(tables)
+        }
+        
+    except Exception as e:
+        print(f"❌ Failed to list tables: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Failed to list tables: {str(e)}",
+            "tables": [],
+            "error": str(e)
+        }
+
+
+@mcp.tool()
+def list_tables() -> dict:
+    """
+    List all tables in the database
+    
+    Returns:
+        Dictionary with list of tables
+    """
+    return _list_tables_impl()
+
+
+def _get_table_schema_impl(table_name: str) -> dict:
+    """
+    Get schema information for a specific table
+    
+    Args:
+        table_name: Name of the table
+        
+    Returns:
+        Dictionary with schema information
+    """
+    print(f"\n🔧 MCP Tool Called: get_table_schema")
+    print(f"📝 Table name: {table_name}\n")
+    
+    # Initialize DB if not already done
+    if not initialize_db():
+        return {
+            "success": False,
+            "message": "Failed to connect to database",
+            "schema": None
+        }
+    
+    try:
+        # Get the CREATE TABLE statement from table_chunks
+        db_manager.cursor.execute("""
+            SELECT sql_query, metadata
+            FROM table_chunks
+            WHERE table_name = %s
+            LIMIT 1;
+        """, (table_name,))
+        
+        row = db_manager.cursor.fetchone()
+        
+        if row:
+            # Also get actual column info from PostgreSQL information_schema
+            db_manager.cursor.execute("""
+                SELECT column_name, data_type, is_nullable
+                FROM information_schema.columns
+                WHERE table_name = %s
+                ORDER BY ordinal_position;
+            """, (table_name,))
+            
+            columns = db_manager.cursor.fetchall()
+            column_info = [dict(col) for col in columns] if columns else []
+            
+            print(f"✅ Schema retrieved for table: {table_name}")
+            return {
+                "success": True,
+                "message": f"Schema retrieved for {table_name}",
+                "table_name": table_name,
+                "sql_query": row['sql_query'],
+                "columns": column_info,
+                "metadata": row['metadata']
+            }
+        else:
+            print(f"❌ Table not found: {table_name}")
+            return {
+                "success": False,
+                "message": f"Table not found: {table_name}",
+                "schema": None
+            }
+            
+    except Exception as e:
+        print(f"❌ Failed to get schema: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Failed to get schema: {str(e)}",
+            "schema": None,
+            "error": str(e)
+        }
+
+
+@mcp.tool()
+def get_table_schema(table_name: str) -> dict:
+    """
+    Get schema information for a specific table
+    
+    Args:
+        table_name: Name of the table
+        
+    Returns:
+        Dictionary with schema information
+    """
+    return _get_table_schema_impl(table_name)
+
+
 # Client class for calling MCP from agents
 class MCPSQLExecutor:
     """Client for calling the MCP SQL execution tools"""
     
     def __init__(self):
         """Initialize the MCP client"""
-        # Initialize database connection
+        # Initialize database connection for backward compatibility
+        # New code should use utils.mcp_client.SQLMCPClient instead
         initialize_db()
     
     def create_table(self, sql_query: str) -> dict:
@@ -255,7 +428,7 @@ class MCPSQLExecutor:
             sql_query: SQL query to execute
             
         Returns:
-            Dict with success status
+            Dict with success status and results
         """
         try:
             result = _execute_sql_query_impl(sql_query)
@@ -263,8 +436,48 @@ class MCPSQLExecutor:
         except Exception as e:
             return {
                 "success": False,
-                "message": f"Error executing query: {str(e)}"
+                "message": f"Error executing query: {str(e)}",
+                "rows": [],
+                "row_count": 0
             }
+    
+    def list_tables(self) -> dict:
+        """
+        List all tables in the database
+        
+        Returns:
+            Dict with table list
+        """
+        try:
+            result = _list_tables_impl()
+            return result
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error listing tables: {str(e)}",
+                "tables": []
+            }
+    
+    def get_table_schema(self, table_name: str) -> dict:
+        """
+        Get schema for a specific table
+        
+        Args:
+            table_name: Name of the table
+            
+        Returns:
+            Dict with schema information
+        """
+        try:
+            result = _get_table_schema_impl(table_name)
+            return result
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error getting schema: {str(e)}",
+                "schema": None
+            }
+
 
 
 if __name__ == "__main__":

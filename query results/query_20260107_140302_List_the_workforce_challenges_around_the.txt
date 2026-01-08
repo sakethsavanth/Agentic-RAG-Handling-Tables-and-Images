@@ -1,0 +1,227 @@
+
+================================================================================
+💬 PROCESSING USER QUERY
+================================================================================
+Query: List the workforce challenges around the world.
+
+
+================================================================================
+🚀 STARTING RETRIEVAL WORKFLOW
+================================================================================
+================================================================================
+
+🚀 STARTING TEXT-TO-SQL WORKFLOW
+--------------------------------------------------------------------------------
+================================================================================
+🔤 STEP 1: EMBEDDING USER QUERY
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+🔍 STEP 1: CLASSIFYING QUERY
+📝 Query: List the workforce challenges around the world.
+
+--------------------------------------------------------------------------------
+📝 Query: List the workforce challenges around the world.
+
+
+⚠️ MCP list_tables failed, using direct query
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Generated 1024-dimensional query embedding
+
+
+--------------------------------------------------------------------------------
+📄 STEP 2: RETRIEVING RELEVANT TEXT CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 text chunks
+   Top similarity score: 0.3292
+   Preview: #### A framework for linking jobs, growth, and business readiness  
+The report categorizes economies...
+
+
+--------------------------------------------------------------------------------
+🖼️ STEP 3: RETRIEVING RELEVANT IMAGE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 image chunks
+   Top similarity score: 0.0853
+   Image type: general
+   Preview: The image shows two people working in a workshop. Both are wearing protective gear, including helmet...
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: RETRIEVING RELEVANT TABLE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 table chunks
+   Top relevance score: 0.2857
+   Table name: IF
+
+
+--------------------------------------------------------------------------------
+🔀 STEP 5: COMBINING AND NORMALIZING RESULTS
+--------------------------------------------------------------------------------
+📦 Total results retrieved: 12
+   Text chunks: 4
+   Image chunks: 4
+   Table chunks: 4
+
+📊 Score distribution:
+   Highest: 0.3292
+   Lowest: 0.0383
+   Average: 0.1604
+
+
+================================================================================
+✅ RETRIEVAL WORKFLOW COMPLETED
+================================================================================
+
+📊 RETRIEVAL SUMMARY:
+   Query: List the workforce challenges around the world.
+   Total results: 12
+   Chunk type distribution:
+      text: 4
+      table: 4
+      image: 4
+
+
+
+================================================================================
+🚀 STARTING RERANKING WORKFLOW
+================================================================================
+
+--------------------------------------------------------------------------------
+⚖️ STEP 1: APPLYING CHUNK TYPE WEIGHTS
+--------------------------------------------------------------------------------
+📊 Processing 12 chunks...
+
+✅ Applied type weights:
+   text: weight=1.00, count=4
+   image: weight=0.90, count=4
+   table: weight=1.10, count=4
+
+
+--------------------------------------------------------------------------------
+🤖 STEP 2: LLM-BASED RELEVANCE SCORING
+--------------------------------------------------------------------------------
+📝 Query: List the workforce challenges around the world.
+🔍 Scoring 12 chunks with Nova...
+
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 267 chars)
+
+🤖 LLM Classification:
+REQUIRES_SQL: NO
+REASONING: The question is asking for a conceptual explanation or general knowledge about workforce challenges around the world, rather than specific data values, statistics, or comparisons that would be stored in database tables.
+EXTRACTED_PARTS: []
+
+✅ Query does NOT require SQL execution
+
+
+================================================================================
+✅ TEXT-TO-SQL WORKFLOW COMPLETED
+================================================================================
+
+✅ Nova response received (length: 410 chars)
+
+   [1/12] Business Ready 2025_chunk_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 437 chars)
+
+   [2/12] Business Ready 2025_table_6... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 403 chars)
+
+   [3/12] Business Ready 2025_chunk_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 543 chars)
+
+   [4/12] Business Ready 2025_chunk_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 572 chars)
+
+   [5/12] Business Ready 2025_table_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 343 chars)
+
+   [6/12] Business Ready 2025_chunk_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 364 chars)
+
+   [7/12] Business Ready 2025_table_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 340 chars)
+
+   [8/12] Business Ready 2025_table_5... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 458 chars)
+
+   [9/12] Business Ready 2025_img_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 510 chars)
+
+   [10/12] Business Ready 2025_img_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 442 chars)
+
+   [11/12] Business Ready 2025_img_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 323 chars)
+
+   [12/12] Business Ready 2025_img_2... → Failed (using weighted)
+
+✅ Completed LLM relevance scoring
+
+
+--------------------------------------------------------------------------------
+🎯 STEP 3: DIVERSITY-BASED RERANKING (MMR)
+--------------------------------------------------------------------------------
+🔄 Applying MMR to 12 chunks...
+
+✅ Applied MMR reranking (λ=0.7)
+   Unique sources: 1
+   Unique sections: 9
+
+
+--------------------------------------------------------------------------------
+🏆 STEP 4: FINAL RANKING
+--------------------------------------------------------------------------------
+🎯 Combining scores for final ranking...
+
+📊 Final Ranking (Top 5):
+   1. [TEXT] Business Ready 2025_chunk_3
+      Final Score: 0.2996
+      (Retrieval: 0.329, LLM: 0.329, MMR: 0.230)
+   2. [TABLE] Business Ready 2025_table_6
+      Final Score: 0.2680
+      (Retrieval: 0.286, LLM: 0.314, MMR: 0.160)
+   3. [TEXT] Business Ready 2025_chunk_2
+      Final Score: 0.2534
+      (Retrieval: 0.298, LLM: 0.298, MMR: 0.149)
+   4. [TEXT] Business Ready 2025_chunk_1
+      Final Score: 0.2370
+      (Retrieval: 0.280, LLM: 0.280, MMR: 0.136)
+   5. [TABLE] Business Ready 2025_table_2
+      Final Score: 0.1727
+      (Retrieval: 0.190, LLM: 0.210, MMR: 0.087)
+
+
+================================================================================
+✅ RERANKING WORKFLOW COMPLETED
+================================================================================
+
+📊 RERANKING SUMMARY:
+   Query: List the workforce challenges around the world.
+   Input chunks: 12
+   Output chunks: 5
+   Score range: 0.1727 - 0.2996
+   Type distribution: {'text': 3, 'table': 2}
+
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1798 chars)
+
+
+================================================================================
+✅ QUERY PROCESSING COMPLETED
+================================================================================
+Duration: 16.13s
+Confidence: 85.00%
+

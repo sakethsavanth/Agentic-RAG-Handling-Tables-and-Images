@@ -173,6 +173,7 @@ class DocumentParseAgent:
         print("-" * 80)
         
         image_chunks = []
+        all_image_sql_queries = []  # Store SQL from visualizations
         
         if not state.get('documents'):
             state['image_chunks'] = image_chunks
@@ -207,6 +208,9 @@ class DocumentParseAgent:
                     # Convert to base64
                     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                     
+                    # Extract page text for context
+                    page_text = page.get_text()
+                    
                     chunk_id = f"{source_document}_img_{image_counter}"
                     section_id = f"Page_{page_num + 1}"
                     
@@ -216,7 +220,8 @@ class DocumentParseAgent:
                     # First, try to detect if it's a visualization
                     analysis_result = self.aws_client.analyze_image(
                         image_base64=image_base64,
-                        image_type="general"  # Start with general analysis
+                        image_type="general",
+                        page_context=page_text[:800]  # Pass page context
                     )
                     
                     if analysis_result['success']:
@@ -234,7 +239,8 @@ class DocumentParseAgent:
                             # Re-analyze as visualization to get SQL
                             viz_result = self.aws_client.analyze_image(
                                 image_base64=image_base64,
-                                image_type="visualization"
+                                image_type="visualization",
+                                page_context=page_text[:800]  # Pass page context
                             )
                             
                             if viz_result['success'] and 'sql_query' in viz_result:
@@ -253,6 +259,10 @@ class DocumentParseAgent:
                                 
                                 # Execute SQL via MCP
                                 print(f"         🔧 Creating table via MCP...")
+                                
+                                # Store SQL query for file export
+                                all_image_sql_queries.append(f"-- Visualization Image: {unique_table if table_match else 'unknown'}\n-- Source: {source_document}, Page {page_num + 1}, Image {image_counter}\n{sql_query}\n")
+                                
                                 mcp_result = self.mcp_executor.create_table(sql_query)
                                 
                                 if mcp_result['success']:
@@ -300,6 +310,24 @@ class DocumentParseAgent:
                     else:
                         print(f"         ⚠️ Image analysis failed: {analysis_result.get('error', 'Unknown error')}")
             
+            # Save all SQL queries from visualizations to a file
+            if all_image_sql_queries:
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                images_file = Path("generated_tables") / f"visualization_tables_{source_document}_{timestamp}.sql"
+                images_file.parent.mkdir(exist_ok=True)
+                
+                try:
+                    with open(images_file, 'w', encoding='utf-8') as f:
+                        f.write(f"-- Generated Tables from Visualizations: {source_document}\n")
+                        f.write(f"-- Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                        f.write(f"-- Total visualization tables: {len(all_image_sql_queries)}\n")
+                        f.write("-- " + "="*70 + "\n\n")
+                        f.write("\n\n".join(all_image_sql_queries))
+                    print(f"\n💾 Saved {len(all_image_sql_queries)} visualization table(s) to: {images_file}")
+                except Exception as e:
+                    print(f"\n⚠️ Failed to save visualization tables to file: {str(e)}")
+            
             print(f"\n✅ Extracted and processed {image_counter} images")
             print(f"   Visualizations: {sum(1 for img in image_chunks if img.get('image_type') == 'visualization')}")
             print(f"   General images: {sum(1 for img in image_chunks if img.get('image_type') == 'general')}\n")
@@ -318,6 +346,7 @@ class DocumentParseAgent:
         print("-" * 80)
         
         table_chunks = []
+        all_sql_queries = []  # Store all SQL queries for file export
         
         markdown_text = state.get('markdown_text', '')
         source_document = state.get('current_document', 'unknown')
@@ -335,12 +364,20 @@ class DocumentParseAgent:
         for table in tables:
             table_id = table['table_id']
             table_content = table['content']
+            context_before = table.get('context_before', '')
+            context_after = table.get('context_after', '')
             
             print(f"   📊 Processing {table_id}...")
             print(f"      Rows: {table['row_count']}")
+            if context_before:
+                print(f"      Context available: {len(context_before)} chars before, {len(context_after)} chars after")
             
             # Analyze table with Nova to get SQL CREATE TABLE statement
-            analysis_result = self.aws_client.analyze_table(table_content)
+            analysis_result = self.aws_client.analyze_table(
+                table_content, 
+                context_before=context_before, 
+                context_after=context_after
+            )
             
             if analysis_result['success']:
                 sql_query = analysis_result['sql_query']
@@ -358,6 +395,9 @@ class DocumentParseAgent:
                 
                 print(f"      🔧 Generated SQL CREATE TABLE and INSERT statements")
                 print(f"      📤 Executing via MCP...")
+                
+                # Store SQL query for file export
+                all_sql_queries.append(f"-- Table: {unique_table if table_match else 'unknown'}\n-- Source: {source_document}, {table_id}\n{sql_query}\n")
                 
                 # Execute SQL via MCP
                 mcp_result = self.mcp_executor.create_table(sql_query)
@@ -387,6 +427,24 @@ class DocumentParseAgent:
                     print(f"      ⚠️ Table creation failed: {mcp_result['message']}")
             else:
                 print(f"      ⚠️ Table analysis failed: {analysis_result.get('error', 'Unknown error')}")
+        
+        # Save all SQL queries to a file before storing in PostgreSQL
+        if all_sql_queries:
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            tables_file = Path("generated_tables") / f"tables_{source_document}_{timestamp}.sql"
+            tables_file.parent.mkdir(exist_ok=True)
+            
+            try:
+                with open(tables_file, 'w', encoding='utf-8') as f:
+                    f.write(f"-- Generated Tables from: {source_document}\n")
+                    f.write(f"-- Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write(f"-- Total tables: {len(all_sql_queries)}\n")
+                    f.write("-- " + "="*70 + "\n\n")
+                    f.write("\n\n".join(all_sql_queries))
+                print(f"\n💾 Saved {len(all_sql_queries)} table(s) to: {tables_file}")
+            except Exception as e:
+                print(f"\n⚠️ Failed to save tables to file: {str(e)}")
         
         print(f"\n✅ Processed {len(table_chunks)} table(s) successfully\n")
         

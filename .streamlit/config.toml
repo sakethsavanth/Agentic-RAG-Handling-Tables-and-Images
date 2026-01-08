@@ -1,0 +1,25 @@
+[server]
+# Disable file watcher to prevent threading errors on Windows
+fileWatcherType = "none"
+
+# Alternative: Use polling instead of watchdog (slower but more stable)
+# fileWatcherType = "poll"
+
+[runner]
+# Faster script execution
+fastReruns = true
+
+[client]
+# Show error details
+showErrorDetails = true
+
+[browser]
+# Automatically open browser
+gatherUsageStats = false
+
+[theme]
+# Optional: Custom theme
+primaryColor = "#667eea"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"

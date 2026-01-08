@@ -1,0 +1,312 @@
+
+================================================================================
+💬 PROCESSING USER QUERY
+================================================================================
+Query: List 5 countries with pillar scores more than 70.
+
+
+================================================================================
+
+================================================================================🚀 STARTING RETRIEVAL WORKFLOW
+🚀 STARTING TEXT-TO-SQL WORKFLOW
+================================================================================
+================================================================================
+
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+🔤 STEP 1: EMBEDDING USER QUERY
+🔍 STEP 1: CLASSIFYING QUERY
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------📝 Query: List 5 countries with pillar scores more than 70.
+
+
+📝 Query: List 5 countries with pillar scores more than 70.
+
+⚠️ MCP list_tables failed, using direct query
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Generated 1024-dimensional query embedding
+
+
+--------------------------------------------------------------------------------
+📄 STEP 2: RETRIEVING RELEVANT TEXT CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 text chunks
+   Top similarity score: 0.5111
+   Preview: ### APPENDIX A: PILLAR SCORES  
+The overall pillar scores for each of the three pillars—Regulatory F...
+
+
+--------------------------------------------------------------------------------
+🖼️ STEP 3: RETRIEVING RELEVANT IMAGE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 image chunks
+   Top similarity score: 0.1158
+   Image type: general
+   Preview: The image shows two people working together on a construction project. They are both wearing protect...
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: RETRIEVING RELEVANT TABLE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 6 table chunks
+   Top relevance score: 1.0000
+   Table name: IF
+
+
+--------------------------------------------------------------------------------
+🔀 STEP 5: COMBINING AND NORMALIZING RESULTS
+--------------------------------------------------------------------------------
+📦 Total results retrieved: 14
+   Text chunks: 4
+   Image chunks: 4
+   Table chunks: 6
+
+📊 Score distribution:
+   Highest: 1.0000
+   Lowest: 0.0370
+   Average: 0.3719
+
+
+================================================================================
+✅ RETRIEVAL WORKFLOW COMPLETED
+================================================================================
+
+📊 RETRIEVAL SUMMARY:
+   Query: List 5 countries with pillar scores more than 70.
+   Total results: 14
+   Chunk type distribution:
+      table: 6
+      text: 4
+      image: 4
+
+
+
+================================================================================
+🚀 STARTING RERANKING WORKFLOW
+================================================================================
+
+--------------------------------------------------------------------------------
+⚖️ STEP 1: APPLYING CHUNK TYPE WEIGHTS
+--------------------------------------------------------------------------------
+📊 Processing 14 chunks...
+
+✅ Applied type weights:
+   text: weight=1.00, count=4
+   image: weight=0.90, count=4
+   table: weight=1.10, count=6
+
+
+--------------------------------------------------------------------------------
+🤖 STEP 2: LLM-BASED RELEVANCE SCORING
+--------------------------------------------------------------------------------
+📝 Query: List 5 countries with pillar scores more than 70.
+🔍 Scoring 14 chunks with Nova...
+
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 314 chars)
+
+🤖 LLM Classification:
+REQUIRES_SQL: YES
+REASONING: The question asks for specific data values (pillar scores) and mentions specific entities (countries) that would be stored in database tables. It requires querying structured data to retrieve the required information.
+EXTRACTED_PARTS: [List 5 countries with pillar scores more than 70]
+
+✅ Query REQUIRES SQL execution
+
+
+--------------------------------------------------------------------------------
+💾 STEP 2: GENERATING SQL QUERY
+--------------------------------------------------------------------------------
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 451 chars)
+
+   [1/14] Business Ready 2025_table_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 426 chars)
+
+   [2/14] Business Ready 2025_table_5... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 448 chars)
+
+✅ Generated 3 SQL queries:
+
+Query 1:
+SELECT pillar_i_country, pillar_i_score 
+FROM pillar_performance_data_table_4 
+WHERE pillar_i_score > 70 
+ORDER BY pillar_i_score DESC 
+LIMIT 5;
+
+Query 2:
+SELECT pillar_ii_country, pillar_ii_score 
+FROM pillar_performance_data_table_4 
+WHERE pillar_ii_score > 70 
+ORDER BY pillar_ii_score DESC 
+LIMIT 5;
+
+Query 3:
+SELECT pillar_iii_country, pillar_iii_score 
+FROM pillar_performance_data_table_4 
+WHERE pillar_iii_score > 70 
+ORDER BY pillar_iii_score DESC 
+LIMIT 5;
+
+
+--------------------------------------------------------------------------------
+⚡ STEP 3: EXECUTING SQL QUERIES VIA MCP
+--------------------------------------------------------------------------------
+
+Executing Query 1 via MCP:
+SELECT pillar_i_country, pillar_i_score 
+FROM pillar_performance_data_table_4 
+WHERE pillar_i_score > 70 
+ORDER BY pillar_i_score DESC 
+LIMIT 5;
+   Using MCP server for query execution...
+❌ Error (via MCP): Invalid request parameters
+   🔄 Attempting fallback to direct database connection...
+✅ Success (fallback): Retrieved 5 row(s)
+
+Executing Query 2 via MCP:
+SELECT pillar_ii_country, pillar_ii_score 
+FROM pillar_performance_data_table_4 
+WHERE pillar_ii_score > 70 
+ORDER BY pillar_ii_score DESC 
+LIMIT 5;
+   Using MCP server for query execution...
+❌ Error (via MCP): Invalid request parameters
+   🔄 Attempting fallback to direct database connection...
+✅ Success (fallback): No rows returned
+
+Executing Query 3 via MCP:
+SELECT pillar_iii_country, pillar_iii_score 
+FROM pillar_performance_data_table_4 
+WHERE pillar_iii_score > 70 
+ORDER BY pillar_iii_score DESC 
+LIMIT 5;
+   Using MCP server for query execution...
+❌ Error (via MCP): Invalid request parameters
+   🔄 Attempting fallback to direct database connection...
+✅ Success (fallback): No rows returned
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: FORMATTING RESULTS
+--------------------------------------------------------------------------------
+✅ Results formatted successfully
+
+
+================================================================================
+✅ TEXT-TO-SQL WORKFLOW COMPLETED
+================================================================================
+
+✅ Nova response received (length: 454 chars)
+
+   [3/14] Business Ready 2025_table_6... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 311 chars)
+
+   [4/14] Business Ready 2025_chunk_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 325 chars)
+
+   [5/14] Business Ready 2025_table_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 274 chars)
+
+   [6/14] Business Ready 2025_table_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 359 chars)
+
+   [7/14] Business Ready 2025_chunk_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 381 chars)
+
+   [8/14] Business Ready 2025_chunk_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 415 chars)
+
+   [9/14] Business Ready 2025_chunk_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 283 chars)
+
+   [10/14] Business Ready 2025_img_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 315 chars)
+
+   [11/14] Business Ready 2025_img_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 323 chars)
+
+   [12/14] Business Ready 2025_img_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 259 chars)
+
+   [13/14] Business Ready 2025_img_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 316 chars)
+
+   [14/14] Business Ready 2025_table_1... → Failed (using weighted)
+
+✅ Completed LLM relevance scoring
+
+
+--------------------------------------------------------------------------------
+🎯 STEP 3: DIVERSITY-BASED RERANKING (MMR)
+--------------------------------------------------------------------------------
+🔄 Applying MMR to 14 chunks...
+
+✅ Applied MMR reranking (λ=0.7)
+   Unique sources: 1
+   Unique sections: 11
+
+
+--------------------------------------------------------------------------------
+🏆 STEP 4: FINAL RANKING
+--------------------------------------------------------------------------------
+🎯 Combining scores for final ranking...
+
+📊 Final Ranking (Top 5):
+   1. [TABLE] Business Ready 2025_table_4
+      Final Score: 1.0010
+      (Retrieval: 1.000, LLM: 1.100, MMR: 0.770)
+   2. [TABLE] Business Ready 2025_table_5
+      Final Score: 0.9830
+      (Retrieval: 1.000, LLM: 1.100, MMR: 0.710)
+   3. [TABLE] Business Ready 2025_table_6
+      Final Score: 0.9830
+      (Retrieval: 1.000, LLM: 1.100, MMR: 0.710)
+   4. [TEXT] Business Ready 2025_chunk_4
+      Final Score: 0.4471
+      (Retrieval: 0.511, LLM: 0.511, MMR: 0.298)
+   5. [TABLE] Business Ready 2025_table_3
+      Final Score: 0.4269
+      (Retrieval: 0.444, LLM: 0.489, MMR: 0.282)
+
+
+================================================================================
+✅ RERANKING WORKFLOW COMPLETED
+================================================================================
+
+📊 RERANKING SUMMARY:
+   Query: List 5 countries with pillar scores more than 70.
+   Input chunks: 14
+   Output chunks: 5
+   Score range: 0.4269 - 1.0010
+   Type distribution: {'table': 4, 'text': 1}
+
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1297 chars)
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 850 chars)
+
+
+================================================================================
+✅ QUERY PROCESSING COMPLETED
+================================================================================
+Duration: 17.46s
+Confidence: 70.00%
+

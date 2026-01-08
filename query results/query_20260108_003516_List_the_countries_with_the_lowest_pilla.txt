@@ -1,0 +1,322 @@
+
+================================================================================
+💬 PROCESSING USER QUERY
+================================================================================
+Query: List the countries with the lowest pillar scores.
+Reranking Method: Cohere API
+
+
+================================================================================
+🚀 STARTING RETRIEVAL WORKFLOW
+================================================================================
+🚀 STARTING TEXT-TO-SQL WORKFLOW
+================================================================================
+================================================================================
+
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+🔍 STEP 1: CLASSIFYING QUERY
+🔤 STEP 1: EMBEDDING USER QUERY
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+📝 Query: List the countries with the lowest pillar scores.
+📝 Query: List the countries with the lowest pillar scores.
+
+
+⚠️ MCP list_tables failed, using direct query
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Generated 1024-dimensional query embedding
+
+
+--------------------------------------------------------------------------------
+📄 STEP 2: RETRIEVING RELEVANT TEXT CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 text chunks
+   Top similarity score: 0.3667
+   Preview: ### APPENDIX A: PILLAR SCORES  
+The overall pillar scores for each of the three pillars—Regulatory F...
+
+
+--------------------------------------------------------------------------------
+🖼️ STEP 3: RETRIEVING RELEVANT IMAGE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 image chunks
+   Top similarity score: 0.1413
+   Image type: general
+   Preview: The image shows two people working together on a construction project. They are both wearing protect...
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: RETRIEVING RELEVANT TABLE CHUNKS
+--------------------------------------------------------------------------------
+✅ Retrieved 4 table chunks
+   Top relevance score: 0.7917
+   Table name: IF
+
+
+--------------------------------------------------------------------------------
+🔀 STEP 5: COMBINING AND NORMALIZING RESULTS
+--------------------------------------------------------------------------------
+📦 Total results retrieved: 12
+   Text chunks: 4
+   Image chunks: 4
+   Table chunks: 4
+
+📊 Score distribution:
+   Highest: 0.7917
+   Lowest: 0.0716
+   Average: 0.2874
+
+
+================================================================================
+✅ RETRIEVAL WORKFLOW COMPLETED
+================================================================================
+
+📊 RETRIEVAL SUMMARY:
+   Query: List the countries with the lowest pillar scores.
+   Total results: 12
+   Chunk type distribution:
+      table: 4
+      text: 4
+      image: 4
+
+
+
+================================================================================
+🚀 STARTING RERANKING WORKFLOW
+================================================================================
+
+🤖 USING COHERE API FOR RERANKING
+--------------------------------------------------------------------------------
+
+❌ Failed to initialize Cohere client: No module named 'fastapi'
+⚠️ Falling back to standard LLM-based reranking
+
+
+================================================================================
+🚀 STARTING RERANKING WORKFLOW
+================================================================================
+
+--------------------------------------------------------------------------------
+⚖️ STEP 1: APPLYING CHUNK TYPE WEIGHTS
+--------------------------------------------------------------------------------
+📊 Processing 12 chunks...
+
+✅ Applied type weights:
+   text: weight=1.00, count=4
+   image: weight=0.90, count=4
+   table: weight=1.10, count=4
+
+
+--------------------------------------------------------------------------------
+🤖 STEP 2: LLM-BASED RELEVANCE SCORING
+--------------------------------------------------------------------------------
+📝 Query: List the countries with the lowest pillar scores.
+🔍 Scoring 12 chunks with Nova...
+
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 339 chars)
+
+🤖 LLM Classification:
+REQUIRES_SQL: YES
+REASONING: The question asks for specific data values (countries with the lowest pillar scores), which implies querying a database to retrieve and compare these scores. It mentions specific entities (countries and scores) that would be stored in tables.
+EXTRACTED_PARTS: [List the countries with the lowest pillar scores]
+
+✅ Query REQUIRES SQL execution
+
+
+--------------------------------------------------------------------------------
+💾 STEP 2: GENERATING SQL QUERY
+--------------------------------------------------------------------------------
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 606 chars)
+
+   [1/12] Business Ready 2025_table_5... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 445 chars)
+
+   [2/12] Business Ready 2025_table_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 791 chars)
+
+✅ Generated 1 SQL query:
+
+Query 1:
+WITH lowest_scores AS (
+    SELECT pillar_i_country AS country, pillar_i_score AS score
+    FROM appendix_a_pillar_scores_table_5
+    UNION
+    SELECT pillar_ii_country AS country, pillar_ii_score AS score
+    FROM appendix_a_pillar_scores_table_5
+    UNION
+    SELECT pillar_iii_country AS country, pillar_iii_score AS score
+    FROM appendix_a_pillar_scores_table_5
+    UNION
+    SELECT economy_name AS country, pillar_i_score AS score
+    FROM b_ready_2025_data_table_6
+    UNION
+    SELECT economy_name AS country, pillar_ii_score AS score
+    FROM b_ready_2025_data_table_6
+    UNION
+    SELECT economy_name AS country, pillar_iii_score AS score
+    FROM b_ready_2025_data_table_6
+)
+SELECT DISTINCT country, score
+FROM lowest_scores
+WHERE score IS NOT NULL
+ORDER BY score ASC
+LIMIT 100;
+
+
+--------------------------------------------------------------------------------
+⚡ STEP 3: EXECUTING SQL QUERIES VIA MCP
+--------------------------------------------------------------------------------
+
+Executing Query 1 via MCP:
+WITH lowest_scores AS (
+    SELECT pillar_i_country AS country, pillar_i_score AS score
+    FROM appendix_a_pillar_scores_table_5
+    UNION
+    SELECT pillar_ii_country AS country, pillar_ii_score AS score
+    FROM appendix_a_pillar_scores_table_5
+    UNION
+    SELECT pillar_iii_country AS country, pillar_iii_score AS score
+    FROM appendix_a_pillar_scores_table_5
+    UNION
+    SELECT economy_name AS country, pillar_i_score AS score
+    FROM b_ready_2025_data_table_6
+    UNION
+    SELECT economy_name AS country, pillar_ii_score AS score
+    FROM b_ready_2025_data_table_6
+    UNION
+    SELECT economy_name AS country, pillar_iii_score AS score
+    FROM b_ready_2025_data_table_6
+)
+SELECT DISTINCT country, score
+FROM lowest_scores
+WHERE score IS NOT NULL
+ORDER BY score ASC
+LIMIT 100;
+   Using MCP server for query execution...
+❌ Error (via MCP): Invalid request parameters
+   🔄 Attempting fallback to direct database connection...
+✅ Success (fallback): Retrieved 100 row(s)
+
+
+--------------------------------------------------------------------------------
+📊 STEP 4: FORMATTING RESULTS
+--------------------------------------------------------------------------------
+✅ Results formatted successfully
+
+
+================================================================================
+✅ TEXT-TO-SQL WORKFLOW COMPLETED
+================================================================================
+
+✅ Nova response received (length: 430 chars)
+
+   [3/12] Business Ready 2025_table_6... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 412 chars)
+
+   [4/12] Business Ready 2025_chunk_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 392 chars)
+
+   [5/12] Business Ready 2025_chunk_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 511 chars)
+
+   [6/12] Business Ready 2025_chunk_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 281 chars)
+
+   [7/12] Business Ready 2025_img_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 352 chars)
+
+   [8/12] Business Ready 2025_chunk_2... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 308 chars)
+
+   [9/12] Business Ready 2025_img_1... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 280 chars)
+
+   [10/12] Business Ready 2025_img_4... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 420 chars)
+
+   [11/12] Business Ready 2025_table_3... → Failed (using weighted)
+🤖 Calling Amazon Nova model: us.amazon.nova-lite-v1:0...
+✅ Nova response received (length: 410 chars)
+
+   [12/12] Business Ready 2025_img_3... → Failed (using weighted)
+
+✅ Completed LLM relevance scoring
+
+
+--------------------------------------------------------------------------------
+🎯 STEP 3: DIVERSITY-BASED RERANKING (MMR)
+--------------------------------------------------------------------------------
+🔄 Applying MMR to 12 chunks...
+
+✅ Applied MMR reranking (λ=0.7)
+   Unique sources: 1
+   Unique sections: 9
+
+
+--------------------------------------------------------------------------------
+🏆 STEP 4: FINAL RANKING
+--------------------------------------------------------------------------------
+🎯 Combining scores for final ranking...
+
+📊 Final Ranking (Top 5):
+   1. [TABLE] Business Ready 2025_table_5
+      Final Score: 0.7925
+      (Retrieval: 0.792, LLM: 0.871, MMR: 0.610)
+   2. [TABLE] Business Ready 2025_table_4
+      Final Score: 0.6910
+      (Retrieval: 0.708, LLM: 0.779, MMR: 0.485)
+   3. [TABLE] Business Ready 2025_table_6
+      Final Score: 0.6076
+      (Retrieval: 0.625, LLM: 0.688, MMR: 0.421)
+   4. [TEXT] Business Ready 2025_chunk_4
+      Final Score: 0.3157
+      (Retrieval: 0.367, LLM: 0.367, MMR: 0.197)
+   5. [TEXT] Business Ready 2025_chunk_3
+      Final Score: 0.1427
+      (Retrieval: 0.177, LLM: 0.177, MMR: 0.064)
+
+
+================================================================================
+✅ RERANKING WORKFLOW COMPLETED
+================================================================================
+
+📊 RERANKING SUMMARY:
+   Query: List the countries with the lowest pillar scores.
+   Input chunks: 12
+   Output chunks: 5
+   Score range: 0.1427 - 0.7925
+   Type distribution: {'table': 3, 'text': 2}
+
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1551 chars)
+
+⚠️ First response was generic, attempting focused retry...
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1777 chars)
+
+🤖 Calling Amazon Nova model: us.amazon.nova-pro-v1:0...
+✅ Nova response received (length: 1095 chars)
+
+
+================================================================================
+✅ QUERY PROCESSING COMPLETED
+================================================================================
+Duration: 21.80s
+Confidence: 70.00%
+
